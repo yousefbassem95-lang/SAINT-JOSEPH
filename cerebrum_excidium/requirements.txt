@@ -1,0 +1,4 @@
+# Requirements for Cerebrum Excidium
+python-nmap
+paramiko
+requests-tor
