@@ -36,8 +36,9 @@ class NmapScannerModule(ReconModule):
 
         log_message("info", f"Starting Evasive Nmap port scan on {ip_address} ({target_hostname})...")
         try:
-            # -sS: TCP SYN (Stealth) Scan, -T2: Slow/sneaky timing, --scan-delay: avoid IDS, -D RND:10: use decoys
-            evasive_args = '-sS -T2 --scan-delay 1s -D RND:10 -Pn'
+            # -sT: TCP Connect (Non-privileged), -T2: Slow/sneaky timing, --scan-delay: avoid IDS, -D RND:10: use decoys
+            # Changed from -sS (root required) to -sT for unprivileged safety
+            evasive_args = '-sT -T2 --scan-delay 1s -D RND:10 -Pn'
             log_message("debug", f"Nmap arguments: {evasive_args}")
             self.nm.scan(hosts=ip_address, arguments=evasive_args)
             

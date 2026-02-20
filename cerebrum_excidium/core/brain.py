@@ -1,15 +1,29 @@
-
 import time
-from utils import log_message
-import database as db
 from core.module_manager import ModuleManager
+from core.report_generator import ReportGenerator
+import database as db
+
+def log_message(level, message):
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] [{level.upper()}] {message}")
 
 class Brain:
     def __init__(self, target=None, mode='recon'):
+        log_message("info", "Initializing Cerebrum Excidium AI Core...")
+        
         self.initial_target = target
         self.mode = mode
+        
+        # Initialize Database
         db.initialize_db()
+        log_message("info", "Database initialized successfully.")
+        
+        # Load Modules
         self.module_manager = ModuleManager()
+        self.module_manager.load_modules()
+        
+        self.reporter = ReportGenerator()
+        
         self.osint_queries_run = set() # Keep track of OSINT queries to avoid repetition
         log_message("info", "Cerebrum Excidium AI Core is waking up. Knowledge Base and Module Manager are online.")
 
@@ -124,3 +138,121 @@ class Brain:
             db.update_target_status(target_id, 'compromised')
         else:
             log_message("warning", f"Exploitation attempt failed on {hostname}.")
+
+    # --- Interactive Methods for SAINT-JOSEPH Chatbot ---
+
+    def interactive_recon(self, target_hostname):
+        """Manually triggers a recon scan on a specific target."""
+        # Ensure target exists in DB
+        existing = db.get_target_by_hostname(target_hostname)
+        if not existing:
+            db.add_target(hostname=target_hostname)
+            existing = db.get_target_by_hostname(target_hostname)
+        
+        log_message("info", f"Interactive: Launching Recon on {target_hostname}...")
+        results_list = self.module_manager.run_recon_modules(target_hostname)
+        
+        if results_list:
+            scan_count = 0
+            for results in results_list:
+                if 'protocols' in results:
+                    # Nmap Result
+                    db.add_port_scan_results(existing['id'], results)
+                    db.update_target_status(existing['id'], 'scanned')
+                    print(f"[+] Port Scan Complete. Open Ports: {len(results.get('protocols', {}).get('tcp', {}))}")
+                    scan_count += 1
+                
+                elif 'dir_scan' in results:
+                    # Dir Scanner Result
+                    paths = results['dir_scan']
+                    print(f"[+] Directory Scan Complete. Found {len(paths)} paths.")
+                    for p in paths:
+                        print(f"    - {p['url']} ({p['status']})")
+                        # Add as vulnerability for tracking
+                        db.add_vulnerability(
+                            target_id=existing['id'],
+                            vuln_type="SENSITIVE_DIR",
+                            description=f"Found: {p['url']} ({p['status']})",
+                            severity="info"
+                        )
+                    scan_count += 1
+
+                elif 'uptime_scan' in results:
+                    # Uptime Monitor Result
+                    up = results['uptime_scan']
+                    print(f"[+] Uptime Check: {up['status']} (HTTP {up.get('code','N/A')}) - {up['latency_ms']}ms")
+                    scan_count += 1
+            
+            if scan_count == 0:
+                 print("[-] Modules ran but produced no actionable data.")
+        else:
+            print("[-] Scan produced no results or failed.")
+
+    def interactive_analysis(self, target_id=None):
+        """Manually triggers analysis."""
+        if not target_id:
+            # Auto-select
+            targets = db.get_targets_by_status(['scanned'])
+            if not targets:
+                print("[-] No scanned targets available for analysis.")
+                return
+            target = targets[0]
+        else:
+            target = db.get_target_by_id(target_id)
+            if not target:
+                print(f"[-] Target ID {target_id} not found.")
+                return
+
+        print(f"[*] Analyzing {target['hostname']}...")
+        self.run_analysis(target)
+        print("[+] Analysis run complete.")
+
+    def interactive_exploitation(self, target_id=None):
+        """Manually triggers exploitation."""
+        if not target_id:
+             targets = db.get_targets_by_status(['analysis_complete'])
+             if not targets:
+                 print("[-] No analyzed targets ready for exploitation.")
+                 return
+             target = targets[0]
+        else:
+            target = db.get_target_by_id(target_id)
+            
+        if not target: 
+            print("[-] Invalid target.")
+            return
+
+        print(f"[*] ATTACKING {target['hostname']}...")
+        self.run_exploitation(target)
+        print("[+] Attack sequence finished.")
+
+    def print_status(self):
+        """Prints a summary of the Knowledge Base."""
+        conn = db.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT status, COUNT(*) as count FROM targets GROUP BY status")
+        stats = cursor.fetchall()
+        print("\n--- KNOWLEDGE BASE STATUS ---")
+        for row in stats:
+            print(f"- {row['status'].upper()}: {row['count']} targets")
+        
+        cursor.execute("SELECT count(*) as count FROM credentials")
+        creds = cursor.fetchone()
+        print(f"- LOOT (Credentials): {creds['count']}")
+        conn.close()
+
+    def toggle_protection(self):
+        """Toggles 'Use Tor' / Self-Protection mode."""
+        # In a real implementation, this would update a global config or ModuleManager state
+        # For now, we'll set a flag on the instance
+        if not hasattr(self, 'use_tor'):
+            self.use_tor = False
+        
+        self.use_tor = not self.use_tor
+        log_message("info", f"Self-Protection (Tor) set to: {self.use_tor}")
+        return self.use_tor
+
+    def generate_report(self):
+        filename = self.reporter.generate_mission_report()
+        log_message("success", f"Mission Report Generated: {filename}")
+        return filename

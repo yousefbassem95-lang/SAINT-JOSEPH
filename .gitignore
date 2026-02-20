@@ -1,0 +1,39 @@
+# --- THE ARCHITECT'S INVISIBILITY CLOAK (GITIGNORE) ---
+# Owner: Youssef Bassem (JUPITER)
+
+# 1. THE FORBIDDEN (Secrets & Keys)
+.env
+.env.local
+*.pem
+*.key
+*.asc
+.gnupg/
+gpg_batch
+gpg_update
+
+# 2. THE WATCHDOG (Internal Security Data)
+.watchdog_db.json
+
+# 3. THE GARBAGE (Python / JS / Compiled Junk)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+node_modules/
+dist/
+build/
+*.exe
+*.so
+*.dll
+
+# 4. THE SHADOWS (IDE & OS Metadata)
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 5. LOGS
+*.log

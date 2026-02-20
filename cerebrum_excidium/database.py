@@ -315,3 +315,39 @@ def add_intelligence(content, intel_type, source, target_id=None):
     finally:
         if conn:
             conn.close()
+
+# --- REPORTING HELPERS ---
+
+def get_all_targets():
+    """Retrieves all targets from the database."""
+    sql = "SELECT * FROM targets ORDER BY created_at DESC"
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    targets = cursor.fetchall()
+    conn.close()
+    return targets
+
+def get_ports_by_target(target_id):
+    """Wrapper for get_open_ports_for_target to match ReportGenerator expectation."""
+    return get_open_ports_for_target(target_id)
+
+def get_vulnerabilities(target_id):
+    """Retrieves ALL vulnerabilities for a target, regardless of status."""
+    sql = "SELECT * FROM vulnerabilities WHERE target_id = ?"
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql, (target_id,))
+    vulns = cursor.fetchall()
+    conn.close()
+    return vulns
+
+def get_credentials(target_id):
+    """Retrieves credentials for a specific target."""
+    sql = "SELECT * FROM credentials WHERE target_id = ?"
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql, (target_id,))
+    creds = cursor.fetchall()
+    conn.close()
+    return creds

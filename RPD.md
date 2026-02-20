@@ -1,0 +1,1 @@
+special rules for product:

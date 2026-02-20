@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# --- THE ARCHITECT'S GUARDIAN (PRE-COMMIT) ---
+# 1. Identity Check
+EXPECTED_NAME="Youssef Bassem"
+EXPECTED_EMAIL="Yousefbassem95@Gmail.com"
+EXPECTED_KEY="61CC6B967A1AF5EB"
+
+ACTUAL_NAME=$(git config user.name)
+ACTUAL_EMAIL=$(git config user.email)
+ACTUAL_KEY=$(git config user.signingkey)
+
+if [[ "$ACTUAL_NAME" != "$EXPECTED_NAME" || "$ACTUAL_EMAIL" != "$EXPECTED_EMAIL" || "$ACTUAL_KEY" != "$EXPECTED_KEY" ]]; then
+    echo "❌ ERROR: Identity Mismatch! You are not the Architect."
+    echo "Expected: $EXPECTED_NAME <$EXPECTED_EMAIL> (Key: $EXPECTED_KEY)"
+    echo "Actual:   $ACTUAL_NAME <$ACTUAL_EMAIL> (Key: $ACTUAL_KEY)"
+    exit 1
+fi
+
+# 2. Secret Scanning (Selective)
+# We ignore .md, .txt, and the Project_Rules files to avoid false positives.
+SECRETS_PATTERN="(?i)(api_key|secret|password|token|aws_key|private_key)\s*[:=]\s*['\"][^'\"]+['\"]"
+FILES_TO_SCAN=$(git diff --cached --name-only | grep -vE "\.(md|txt|yaml|json|txt)$|Project_Rules/|templates/")
+
+if [ -n "$FILES_TO_SCAN" ]; then
+    if echo "$FILES_TO_SCAN" | xargs grep -iPE "$SECRETS_PATTERN" /dev/null; then
+        echo "❌ ERROR: Potential hardcoded secrets detected in your source code!"
+        echo "Please use environment variables (.env) for sensitive data."
+        exit 1
+    fi
+fi
+
+echo "✅ Guardian passed. Proceeding with commit..."

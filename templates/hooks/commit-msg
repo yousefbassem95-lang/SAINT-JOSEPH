@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# --- THE ARCHITECT'S GUARDIAN (COMMIT-MSG) ---
+# Enforce Conventional Commits: <type>(<scope>): <subject>
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat $COMMIT_MSG_FILE)
+PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.*\))?: .+"
+
+if [[ ! $COMMIT_MSG =~ $PATTERN ]]; then
+    echo "❌ ERROR: Invalid commit message format!"
+    echo "Follow Conventional Commits: <type>(<scope>): <subject>"
+    echo "Example: feat(auth): add login encryption"
+    exit 1
+fi
+
+echo "✅ Message format valid."

@@ -86,7 +86,7 @@ class ModuleManager:
                     all_results.append(result)
             except Exception as e:
                 log_message("error", f"Error running recon module {module.name}: {e}")
-        return all_results[0] if all_results else None
+        return all_results
 
     def run_analysis_modules(self, target_id):
         log_message("info", f"Running {len(self.analysis_modules)} analysis module(s) against target ID {target_id}.")
