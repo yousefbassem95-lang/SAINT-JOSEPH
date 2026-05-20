@@ -2,29 +2,31 @@ import time
 from core.module_manager import ModuleManager
 from core.report_generator import ReportGenerator
 import database as db
-
-def log_message(level, message):
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] [{level.upper()}] {message}")
+from utils import log_message, validate_target
 
 class Brain:
     def __init__(self, target=None, mode='recon'):
         log_message("info", "Initializing Cerebrum Excidium AI Core...")
         
-        self.initial_target = target
+        if target and not validate_target(target):
+            log_message("error", f"Invalid target provided: {target}")
+            self.initial_target = None
+        else:
+            self.initial_target = target
+
         self.mode = mode
         
         # Initialize Database
         db.initialize_db()
-        log_message("info", "Database initialized successfully.")
         
-        # Load Modules
-        self.module_manager = ModuleManager()
-        self.module_manager.load_modules()
+        # Initialize Module Manager
+        self.module_path = 'modules.enabled' # This can be configurable
+        self.module_manager = ModuleManager(module_path=self.module_path)
         
+        # Initialize Report Generator
         self.reporter = ReportGenerator()
         
-        self.osint_queries_run = set() # Keep track of OSINT queries to avoid repetition
+        self.osint_queries_run = set() # Track queries to avoid repetition
         log_message("info", "Cerebrum Excidium AI Core is waking up. Knowledge Base and Module Manager are online.")
 
     def run(self):
@@ -143,6 +145,10 @@ class Brain:
 
     def interactive_recon(self, target_hostname):
         """Manually triggers a recon scan on a specific target."""
+        if not validate_target(target_hostname):
+            print(f"[-] Invalid target: {target_hostname}")
+            return
+
         # Ensure target exists in DB
         existing = db.get_target_by_hostname(target_hostname)
         if not existing:

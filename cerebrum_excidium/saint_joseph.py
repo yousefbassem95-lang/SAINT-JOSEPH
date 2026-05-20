@@ -2,7 +2,20 @@
 import sys
 import time
 import argparse
+import subprocess
+import os
+import getpass
 from core.brain import Brain
+
+def check_integrity():
+    print("[*] Performing integrity check...")
+    wd_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "integrity_watchdog.py"))
+    result = subprocess.run([sys.executable, wd_path, "check"], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stdout)
+        print("[!] Integrity check FAILED. Potential unauthorized modifications detected.")
+        sys.exit(1)
+    print("[+] Integrity check PASSED.")
 
 class SaintJosephBot:
     def __init__(self):
@@ -87,8 +100,29 @@ class SaintJosephBot:
         print("7. Exit")
         print("======================")
 
+    def authenticate(self):
+        print("\n[!] Access Restricted. Identity verification required.")
+        # Default password for now, as per standard practice of being configurable but having a default
+        correct_password = "saint"
+        attempts = 0
+        while attempts < 5:
+            password = getpass.getpass("Master Key: ")
+            if password == correct_password:
+                print("[+] Identity Verified. Welcome, Master.")
+                return True
+            attempts += 1
+            print(f"[-] Access Denied. {5 - attempts} attempts remaining.")
+
+        print("[!!!] SECURITY BREACH: Too many failed attempts. Shutting down.")
+        return False
+
     def start(self):
+        check_integrity()
         self.display_banner()
+
+        if not self.authenticate():
+            sys.exit(1)
+
         print("\n[+] SAINT-JOSEPH Online. Awaiting commands.")
         
         while self.running:

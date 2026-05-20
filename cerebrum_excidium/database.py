@@ -1,6 +1,6 @@
 
 import sqlite3
-from utils import log_message
+from utils import log_message, encrypt_data, decrypt_data
 import os
 
 DB_NAME = "knowledge_base.db"
@@ -275,6 +275,10 @@ def update_vulnerability_status(vuln_id, status):
 
 # --- CREDENTIALS MANAGEMENT ---
 def add_credentials(password, target_id=None, service=None, username=None, cred_type='plaintext', source='exploitation'):
+    # Security Hardening: Encrypt sensitive fields
+    encrypted_password = encrypt_data(password)
+    encrypted_username = encrypt_data(username) if username else None
+
     sql = """
         INSERT INTO credentials (target_id, service, username, password, type, source)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -282,8 +286,8 @@ def add_credentials(password, target_id=None, service=None, username=None, cred_
     conn = get_db_connection()
     try:
         with conn:
-            conn.execute(sql, (target_id, service, username, password, cred_type, source))
-        log_message("critical", f"New credentials captured and stored in KB.")
+            conn.execute(sql, (target_id, service, encrypted_username, encrypted_password, 'encrypted', source))
+        log_message("critical", f"New credentials captured and stored in KB (encrypted).")
     except sqlite3.Error as e:
         log_message("error", f"Failed to store credentials in KB: {e}")
     finally:
@@ -343,11 +347,21 @@ def get_vulnerabilities(target_id):
     return vulns
 
 def get_credentials(target_id):
-    """Retrieves credentials for a specific target."""
+    """Retrieves and decrypts credentials for a specific target."""
     sql = "SELECT * FROM credentials WHERE target_id = ?"
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(sql, (target_id,))
     creds = cursor.fetchall()
+
+    decrypted_creds = []
+    for row in creds:
+        # Convert sqlite3.Row to dict to allow modification
+        c = dict(row)
+        if c.get('type') == 'encrypted':
+            c['password'] = decrypt_data(c['password'])
+            c['username'] = decrypt_data(c['username'])
+        decrypted_creds.append(c)
+
     conn.close()
-    return creds
+    return decrypted_creds

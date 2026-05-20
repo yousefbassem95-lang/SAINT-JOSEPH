@@ -1,7 +1,7 @@
 
 import re
 from urllib.parse import urlparse
-from utils import log_message
+from utils import log_message, validate_target
 import database as db
 from modules.base_module import OSINTModule
 
@@ -38,6 +38,7 @@ class GoogleSearchModule(OSINTModule):
         log_message("info", f"[{self.name}] Found {len(hostnames)} unique potential hostnames from search.")
 
         for hostname in hostnames:
+            if not validate_target(hostname): continue
             if not db.get_target_by_hostname(hostname):
                 log_message("info", f"[{self.name}] Discovered new potential target via OSINT: {hostname}")
                 db.add_target(hostname=hostname, status='new')

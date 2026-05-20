@@ -1,13 +1,13 @@
-
 from utils import log_message
 import database as db
 from modules.base_module import AnalysisModule
+import re
 
 class SqlmapPreparerModule(AnalysisModule):
     def __init__(self):
         super().__init__()
         self.name = "SQLmap Command Preparer"
-        self.description = "Analyzes web ports and prepares a basic sqlmap command if a web server is suspected."
+        self.description = "Analyzes web ports and prepares sqlmap commands based on discovered paths."
 
     def run(self, target_id):
         """
@@ -34,24 +34,39 @@ class SqlmapPreparerModule(AnalysisModule):
         target_id = target['id']
         web_ports_of_interest = {80, 443, 8000, 8080}
         
-        found_web_port = next((port for port in open_ports if port['port_number'] in web_ports_of_interest), None)
+        found_web_ports = [port for port in open_ports if port['port_number'] in web_ports_of_interest]
 
-        if found_web_port:
-            port_id = found_web_port['id']
-            log_message("info", f"[{self.name}] Web port {found_web_port['port_number']} detected on {host}. Crafting SQLMap command.")
-            
-            protocol = 'https' if found_web_port['port_number'] == 443 else 'http'
-            target_url = f"{protocol}://{host}/index.php?id=1" # Simplistic assumption
-            
-            sqlmap_command = f"sqlmap -u '{target_url}' --batch --risk=1 --level=2 --random-agent"
-
-            db.add_vulnerability(
-                target_id=target_id,
-                port_id=port_id,
-                vuln_type="SQL_INJECTION_COMMAND",
-                tool="sqlmap",
-                command=sqlmap_command,
-                description=f"Potential SQL Injection vulnerability at {target_url}"
-            )
-        else:
+        if not found_web_ports:
             log_message("info", f"[{self.name}] No common web ports open on {host}. Skipping web vulnerability scan.")
+            return
+
+        # Look for paths discovered by DirScannerModule in vulnerabilities table (stored as SENSITIVE_DIR)
+        vulns = db.get_vulnerabilities(target_id)
+        discovered_paths = [v['description'].split('Found: ')[1].split(' (')[0] for v in vulns if v['type'] == "SENSITIVE_DIR"]
+
+        # Also check for standard interesting extensions if no paths found
+        if not discovered_paths:
+            discovered_paths = [f"http://{host}/index.php?id=1"] # Fallback
+
+        for port_info in found_web_ports:
+            port_id = port_info['id']
+            port_num = port_info['port_number']
+            log_message("info", f"[{self.name}] Web port {port_num} detected on {host}. Analyzing paths.")
+            
+            for path in discovered_paths:
+                # Basic check to see if path might be injectable (e.g. has parameters)
+                if '?' in path:
+                    target_url = path
+                else:
+                    target_url = f"{path.rstrip('/')}/index.php?id=1"
+
+                sqlmap_command = f"sqlmap -u '{target_url}' --batch --risk=1 --level=2 --random-agent"
+
+                db.add_vulnerability(
+                    target_id=target_id,
+                    port_id=port_id,
+                    vuln_type="SQL_INJECTION_COMMAND",
+                    tool="sqlmap",
+                    command=sqlmap_command,
+                    description=f"Potential SQL Injection vulnerability at {target_url}"
+                )
