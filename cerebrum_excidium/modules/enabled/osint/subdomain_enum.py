@@ -1,7 +1,7 @@
 import requests
 import json
 from modules.base_module import OSINTModule
-from core.brain import log_message
+from utils import log_message, validate_target
 import database as db
 
 class SubdomainEnumModule(OSINTModule):
@@ -36,6 +36,7 @@ class SubdomainEnumModule(OSINTModule):
                 # Add found subdomains to DB
                 for sub in subdomains:
                     existing = db.get_target_by_hostname(sub)
+                    if not validate_target(sub): continue
                     if not existing:
                         db.add_target(hostname=sub)
                         log_message("info", f"[{self.name}] Added new target: {sub}")

@@ -1,6 +1,19 @@
-
 import argparse
 from core.brain import Brain
+import subprocess
+import sys
+import os
+
+def check_integrity():
+    print("[*] Performing integrity check...")
+    wd_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "integrity_watchdog.py"))
+    result = subprocess.run([sys.executable, wd_path, "check"], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stdout)
+        print("[!] Integrity check FAILED. Potential unauthorized modifications detected.")
+        sys.exit(1)
+    print("[+] Integrity check PASSED.")
+
 
 def main():
     banner = r"""
@@ -36,6 +49,7 @@ def main():
                                       ---                                        
                                       |||                             
 """
+    check_integrity()
     print(banner)
     print("                 Cerebrum Excidium - The Mind of Destruction")
     print("                           --- SHADOWHacker-GOD ---")

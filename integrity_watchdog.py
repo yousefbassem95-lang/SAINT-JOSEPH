@@ -12,6 +12,7 @@ from datetime import datetime
 
 DB_FILE = ".watchdog_db.json"
 IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".idea", ".vscode", "dist", "build"}
+IGNORE_EXTENSIONS = {".db", ".key", ".json", ".pyc", ".png", ".jpg", ".jpeg", ".txt", ".md"}
 
 def calculate_hash(filepath):
     sha256_hash = hashlib.sha256()
@@ -32,6 +33,10 @@ def scan_directory(root_dir="."):
         for file in files:
             if file == "integrity_watchdog.py" or file == DB_FILE:
                 continue
+
+            ext = os.path.splitext(file)[1].lower()
+            if ext in IGNORE_EXTENSIONS:
+                continue
                 
             filepath = os.path.join(root, file)
             file_hash = calculate_hash(filepath)
@@ -48,7 +53,7 @@ def create_baseline():
     }
     with open(DB_FILE, "w") as f:
         json.dump(data, f, indent=4)
-    print(f"✅ Baseline secured. Monitoring {len(snapshot)} files.")
+    print(f"✅ Baseline secured. Monitoring {len(snapshot)} code files.")
 
 def check_integrity():
     if not os.path.exists(DB_FILE):
